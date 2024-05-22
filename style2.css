@@ -1,0 +1,29 @@
+/* Background color for the navbar */
+.brown_panel {
+    background-color: #ffcccc; /* Light pink */
+}
+
+/* Navbar brand text color */
+.navbar-brand {
+    color: #663333; /* Dark pink */
+}
+
+/* Navbar links color */
+.navbar-nav .nav-link {
+    color: #663333; /* Dark pink */
+}
+
+/* Navbar links hover color */
+.navbar-nav .nav-link:hover {
+    color: #ff6699; /* Darker pink */
+}
+
+/* Toggler icon color */
+.navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3e%3cpath stroke='%23663333' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+/* Toggler icon hover color */
+.navbar-toggler:hover .navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3e%3cpath stroke='%23ff6699' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}

@@ -1,0 +1,206 @@
+
+<?php
+session_start();
+include("db.php");
+include("directorNav.php");
+
+$total_price = 0;
+$total_service_count = 0;
+
+$limit = 10; // Лимит записей на страницу
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$offset = ($page - 1) * $limit;
+
+if (isset($_POST['submit']) || isset($_GET['start_date'])) {
+    $start_date = isset($_POST['start_date']) ? $_POST['start_date'] : $_GET['start_date'];
+    $end_date = isset($_POST['end_date']) ? $_POST['end_date'] : $_GET['end_date'];
+
+    // Запрос для выборки данных с учетом пагинации и исключением заявок со статусом 1
+    $query = "SELECT masters.master_name, COUNT(appointments.appointment_id) AS service_count, SUM(services.service_price) AS total_price
+              FROM appointments
+              INNER JOIN masters ON appointments.master_id = masters.master_id
+              INNER JOIN services ON appointments.service_id = services.service_id
+              WHERE appointments.appointment_date BETWEEN '$start_date' AND '$end_date'
+              AND appointments.status != 1
+              GROUP BY masters.master_id
+              LIMIT $limit OFFSET $offset";
+    $result = mysqli_query($db, $query);
+
+    // Запрос для подсчета общего количества записей и общей суммы
+    $count_query = "SELECT COUNT(DISTINCT masters.master_id) AS total_masters, SUM(services.service_price) AS total_price, COUNT(appointments.appointment_id) AS total_service_count
+                    FROM appointments
+                    INNER JOIN masters ON appointments.master_id = masters.master_id
+                    INNER JOIN services ON appointments.service_id = services.service_id
+                    WHERE appointments.appointment_date BETWEEN '$start_date' AND '$end_date'
+                    AND appointments.status != 1";
+    $count_result = mysqli_query($db, $count_query);
+    if ($count_result) {
+        $count_row = mysqli_fetch_assoc($count_result);
+        $total_masters = $count_row['total_masters'];
+        $total_price = $count_row['total_price'];
+        $total_service_count = $count_row['total_service_count'];
+        $total_pages = ceil($total_masters / $limit);
+    }
+
+    if (!$result) {
+        echo "Ошибка запроса: " . mysqli_error($db);
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Сведения об объеме работ мастеров</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #fce4ec; /* Розовый фон */
+            font-family: Arial, sans-serif;
+            color: #444;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            padding-top: 20px;
+        }
+        .table {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .table th, .table td {
+            text-align: center;
+        }
+        .btn-primary {
+            background-color: #ff80ab; /* Розовая кнопка */
+            border-color: #ff80ab;
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background-color: #f06292; /* Розовая кнопка при наведении */
+            border-color: #f06292;
+        }
+        .pagination {
+            justify-content: center;
+        }
+        .page-item.active .page-link {
+            background-color: #ff80ab;
+            border-color: #ff80ab;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2 class="text-center mt-4 mb-4">Сведения об объеме работ мастеров</h2>
+
+    <!-- Форма для выбора периода и отправки запроса -->
+    <form class="form-inline mb-4" action="" method="POST">
+        <label for="start_date" class="mr-2">Отчет за период с:</label>
+
+<input type="date" id="start_date" name="start_date" class="form-control mr-2" required value="<?php echo isset($start_date) ? $start_date : ''; ?>">
+        <label for="end_date" class="mr-2">по:</label>
+        <input type="date" id="end_date" name="end_date" class="form-control mr-2" required value="<?php echo isset($end_date) ? $end_date : ''; ?>">
+        <button type="submit" class="btn btn-primary" name="submit">Сформировать отчет</button>
+    </form>
+
+    <!-- Таблица для отображения сведений о мастерах -->
+    <div class="table-responsive">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>ФИО Мастера</th>
+                    <th>Количество услуг</th>
+                    <th>Сумма</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                if (isset($result)) {
+                    while ($row = mysqli_fetch_assoc($result)) {
+                        echo "<tr>";
+                        echo "<td>" . $row['master_name'] . "</td>";
+                        echo "<td>" . $row['service_count'] . "</td>";
+                        echo "<td>" . $row['total_price'] . "</td>";
+                        echo "</tr>";
+                    }
+
+                    // Итоговая строка
+                    echo "<tr>";
+                    echo "<td><strong>Итого</strong></td>";
+                    echo "<td><strong>$total_service_count</strong></td>";
+                    echo "<td><strong>$total_price</strong></td>";
+                    echo "</tr>";
+                } else {
+                    echo "<tr><td colspan='3'>Нет данных для отображения</td></tr>";
+                }
+                ?>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Пагинация -->
+    <?php if (isset($total_pages) && $total_pages > 1): ?>
+        <nav aria-label="Пагинация">
+            <ul class="pagination">
+                <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+                    <li class="page-item <?php if ($i == $page) echo 'active'; ?>">
+                        <a class="page-link" href="?page=<?php echo $i; ?>&start_date=<?php echo $start_date; ?>&end_date=<?php echo $end_date; ?>">
+                            <?php echo $i; ?>
+                        </a>
+                    </li>
+                <?php endfor; ?>
+            </ul>
+        </nav>
+    <?php endif; ?>
+
+    <!-- Добавляем график -->
+    <div class="mt-4">
+        <canvas id="myChart" width="400" height="200"></canvas>
+    </div>
+</div>
+
+<!-- Подключаем библиотеку Chart.js для построения графика -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+<script>
+    // Получаем данные из PHP для построения графика
+    let masterNames = [];
+    let serviceCounts = [];
+    <?php
+    if (isset($result)) {
+        mysqli_data_seek($result, 0); // Возвращаем указатель результата на начало
+        while ($row = mysqli_fetch_assoc($result)) {
+            echo "masterNames.push('" . $row['master_name'] . "');";
+            echo "serviceCounts.push(" . $row['service_count'] . ");";
+        }
+    }
+    ?>
+
+    // Создаем график
+    var ctx = document.getElementById('myChart').getContext('2d');
+    var myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: masterNames,
+            datasets: [{
+                label: 'Количество услуг',
+                data: serviceCounts,
+                backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    stepSize: 1
+                }
+            }
+        }
+    });
+</script>
+</body>
+</html>
